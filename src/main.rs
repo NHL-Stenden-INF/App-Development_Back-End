@@ -30,12 +30,12 @@ async fn main()
         .route("/game/{game-id}", get(Game::index))
         .route("/game/{game-id}", patch(Game::update))
         .route("/game/{game-id}/user/{user-id}", get(Game::index_game_by_user))
-        .route("/game/{game-id)/user/{user-id}", patch(Game::update_game_by_user))
+        .route("/game/{game-id}/user/{user-id}", patch(Game::update_game_by_user))
         // Friends routes
         .route("/friend/", get(Friends::show))
         .route("/friend/{user-id}", get(Friends::index))
         .route("/friend/{user-id}/add/{friend-id}", post(Friends::store))
-        .route("/friend/{user-id{/remove/{friend-id}", post(Friends::destroy))
+        .route("/friend/{user-id}/remove/{friend-id}", post(Friends::destroy))
         .layer(middleware::from_fn(Middleware::authenticate));
 
     // run our app with hyper, listening globally on port 3000
