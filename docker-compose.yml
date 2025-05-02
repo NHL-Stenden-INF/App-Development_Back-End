@@ -1,0 +1,16 @@
+services:
+  appdev-backend:
+    container_name: appdev-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - "${SERVER_PORT}"
+    ports:
+      - "${SERVER_PORT}:3000"
+    environment:
+      - DEVELOPMENT=${DEVELOPMENT:-false}
+    command: > 
+      bash -cx
+      "cargo install --path .;
+      /usr/local/cargo/bin/AppDev-Backend"
