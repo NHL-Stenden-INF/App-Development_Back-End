@@ -3,3 +3,4 @@ app-dev.db
 Cargo.lock
 
 .idea
+.env

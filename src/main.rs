@@ -12,10 +12,12 @@ use axum::routing::{any, get, post, patch, delete};
 use serde_json;
 use serde_json::json;
 
+const HOST: &str = "0.0.0.0:3000";
+
 #[tokio::main]
 async fn main()
 {
-    // build our application with a single route
+    println!("Started server on: {}", HOST);
     let app = Router::new()
         // Root route (unused)
         .route("/", any(root))
@@ -39,7 +41,7 @@ async fn main()
         .layer(middleware::from_fn(Middleware::authenticate));
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let listener = tokio::net::TcpListener::bind(HOST)
         .await
         .unwrap();
     axum::serve(listener, app)
