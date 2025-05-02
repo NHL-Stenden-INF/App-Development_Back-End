@@ -1,9 +1,8 @@
 use std::string::ToString;
-use std::sync::{LockResult, Mutex};
-use bcrypt::{BcryptResult, HashParts};
+use std::sync::Mutex;
 use lazy_static;
 use rusqlite;
-use rusqlite::{named_params, params, Connection};
+use rusqlite::{named_params, Connection};
 
 lazy_static::lazy_static!
 {

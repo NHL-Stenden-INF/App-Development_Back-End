@@ -4,7 +4,7 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::middleware::Next;
 use axum::response::Response;
-use regex::{Matches, Regex};
+use regex::Regex;
 use lazy_static;
 
 lazy_static::lazy_static!

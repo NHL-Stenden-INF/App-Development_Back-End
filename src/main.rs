@@ -4,13 +4,10 @@ mod auth;
 mod game;
 mod friends;
 
-use std::io::ErrorKind::AddrInUse;
 use axum;
 use axum::response::Html;
 use axum::{middleware, Router};
 use axum::routing::{any, get, post, patch, delete};
-use serde_json;
-use serde_json::json;
 
 #[tokio::main]
 async fn main()
