@@ -1,8 +1,8 @@
-mod User;
-mod Database;
-mod Middleware;
-mod Game;
-mod Friends;
+mod user;
+mod database;
+mod auth;
+mod game;
+mod friends;
 
 use std::io::ErrorKind::AddrInUse;
 use axum;
@@ -20,23 +20,23 @@ async fn main()
         // Root route (unused)
         .route("/", any(root))
         // User routes
-        .route("/user", get(User::show))
-        .route("/user", post(User::store))
-        .route("/user/{user-id}", get(User::index))
-        .route("/user/{user-id}", patch(User::update))
-        .route("/user/{user-id}", delete(User::destroy))
+        .route("/user", get(user::show))
+        .route("/user", post(user::store))
+        .route("/user/{user-id}", get(user::index))
+        .route("/user/{user-id}", patch(user::update))
+        .route("/user/{user-id}", delete(user::destroy))
         // Game routes
-        .route("/game/", get(Game::show))
-        .route("/game/{game-id}", get(Game::index))
-        .route("/game/{game-id}", patch(Game::update))
-        .route("/game/{game-id}/user/{user-id}", get(Game::index_game_by_user))
-        .route("/game/{game-id}/user/{user-id}", patch(Game::update_game_by_user))
+        .route("/game/", get(game::show))
+        .route("/game/{game-id}", get(game::index))
+        .route("/game/{game-id}", patch(game::update))
+        .route("/game/{game-id}/user/{user-id}", get(game::index_game_by_user))
+        .route("/game/{game-id}/user/{user-id}", patch(game::update_game_by_user))
         // Friends routes
-        .route("/friend/", get(Friends::show))
-        .route("/friend/{user-id}", get(Friends::index))
-        .route("/friend/{user-id}/add/{friend-id}", post(Friends::store))
-        .route("/friend/{user-id}/remove/{friend-id}", post(Friends::destroy))
-        .layer(middleware::from_fn(Middleware::authenticate));
+        .route("/friend/", get(friends::show))
+        .route("/friend/{user-id}", get(friends::index))
+        .route("/friend/{user-id}/add/{friend-id}", post(friends::store))
+        .route("/friend/{user-id}/remove/{friend-id}", post(friends::destroy))
+        .layer(middleware::from_fn(auth::authenticate));
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")

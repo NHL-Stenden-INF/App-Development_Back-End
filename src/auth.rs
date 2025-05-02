@@ -1,4 +1,4 @@
-use crate::Database;
+use crate::database;
 
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
@@ -42,5 +42,5 @@ fn verify_credentials(authorization_header: &HeaderValue) -> bool
 
 fn verify_credentials_by_string(email: &str, password: &str) -> bool
 {
-    Database::validate_user(email, password)
+    database::validate_user(email, password)
 }
