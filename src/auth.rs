@@ -12,6 +12,12 @@ lazy_static::lazy_static!
     static ref AUTH_PATTERN: Regex = Regex::new(r"Basic (.*):(.*)").unwrap();
 }
 
+pub struct Credentials
+{
+    email: String,
+    password: String
+}
+
 pub async fn authenticate(
     headers: HeaderMap,
     request: Request,
@@ -20,24 +26,37 @@ pub async fn authenticate(
 {
     match headers.get("Authorization")
     {
-        Some(header) if verify_credentials(header) => {Ok(next.run(request).await)},
+        Some(header) => 
+            {
+                let credentials: Credentials = get_credentials(header);
+                match validate_user(&credentials.email, &credentials.password) 
+                { 
+                    true => Ok(next.run(request).await),
+                    false => Err(StatusCode::UNAUTHORIZED)
+                }
+            },
         None => Err(StatusCode::UNAUTHORIZED),
         _ => Err(StatusCode::UNAUTHORIZED),
     }
 }
 
-fn verify_credentials(authorization_header: &HeaderValue) -> bool
+pub fn get_credentials(authorization_header: &HeaderValue) -> Credentials
 {
     let parameters = AUTH_PATTERN.captures(
         authorization_header
             .to_str()
-            .unwrap_or_else(|_| {"Basic invalid:user"}))
+            .unwrap_or_else(|_| { "Basic invalid:user" }))
         .unwrap();
 
-    let email: &str = parameters.get(1).map_or("", |m| m.as_str());
-    let password: &str = parameters.get(2).map_or("", |m| m.as_str());
-
-    validate_user(email, password)
+    Credentials
+    {
+        email: parameters
+            .get(1)
+            .map_or("".to_string(), |m| m.as_str().to_string()),
+        password: parameters
+            .get(2)
+            .map_or("".to_string(), |m| m.as_str().to_string())
+    }
 }
 
 pub fn validate_user(email: &str, password: &str) -> bool
