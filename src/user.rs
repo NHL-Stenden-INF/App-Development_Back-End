@@ -1,4 +1,5 @@
 use axum::extract::Path;
+use axum::http::StatusCode;
 use crate::database::CONN;
 
 use axum::Json;
@@ -20,10 +21,10 @@ pub struct User
 impl User
 {
     pub fn new(
-        id: i32, 
-        username: String, 
-        email: String, 
-        password: String, 
+        id: i32,
+        username: String,
+        email: String,
+        password: String,
         points: i32
     ) -> User
     {
@@ -36,7 +37,7 @@ impl User
             points
         }
     }
-    
+
     pub fn verify(&self, password: &str) -> bool
     {
         match bcrypt::verify(password, &self.password, )
@@ -47,7 +48,7 @@ impl User
     }
 }
 
-pub async fn index(path: Path<i32>) -> Result<Json<User>, Json<String>>
+pub async fn index(path: Path<i32>) -> Result<Json<User>, (StatusCode, Json<String>)>
 {
     let requested_user_id: i32 = path.0;
     let query: String = sql::Select::new()
@@ -55,13 +56,13 @@ pub async fn index(path: Path<i32>) -> Result<Json<User>, Json<String>>
         .from("users")
         .where_clause("id = :user_id")
         .as_string();
-    
+
     let conn = CONN.lock().unwrap();
     let stmt = conn.prepare(&query);
 
     let mut result = stmt.unwrap();
 
-    let user: User = result.query_row(named_params! {":user_id": requested_user_id}, |row| {
+    let user = result.query_row(named_params! {":user_id": requested_user_id}, |row| {
         Ok(User {
             id: row.get::<usize, i32>(0).unwrap(),
             username: row.get::<usize, String>(1).unwrap(),
@@ -69,19 +70,16 @@ pub async fn index(path: Path<i32>) -> Result<Json<User>, Json<String>>
             password: "".to_string(),
             points: row.get::<usize, i32>(3).unwrap()
         })
-    }).unwrap_or_else(|error| {
-        User::new(
-        0, 
-        format!("User not found: {}", error), 
-        "does@not.exist".to_string(), 
-        "".to_string(), 
-        0)
     });
-    
-    Ok(Json(user))
+        
+    match user 
+    {
+        Ok(user) => Ok(Json(user)),
+        Err(error) => Err((StatusCode::NOT_FOUND, Json(format!("Unable to query user: {}", error.to_string()))))
+    }
 }
 
-pub async fn show()  -> Result<Json<Vec<User>>, Json<String>>
+pub async fn show() -> Result<Json<Vec<User>>, (StatusCode, Json<String>)>
 {
     let query: String = sql::Select::new()
         .select("id, name, email, points")
@@ -113,7 +111,7 @@ pub async fn show()  -> Result<Json<Vec<User>>, Json<String>>
     Ok(Json(user_vector))
 }
 
-pub async fn store(body: String) -> Result<Json<String>, Json<String>>
+pub async fn store(body: String) -> Result<Json<String>, (StatusCode, Json<String>)>
 {
     #[derive(Deserialize)]
     struct Request
@@ -126,7 +124,7 @@ pub async fn store(body: String) -> Result<Json<String>, Json<String>>
     let request: Request = match deserialize_request::<Request>(body.as_str()) {
         Ok(request) => request,
         Err(error) => {
-            return Err(Json(format!("Unable to create new user: {}", error)));
+            return Err((StatusCode::BAD_REQUEST, Json(format!("Unable to create new user: {}", error))));
         }
     };
 
@@ -152,15 +150,14 @@ pub async fn store(body: String) -> Result<Json<String>, Json<String>>
 
     if has_taken_credentials
     {
-        return Err(Json("This email or username is already in use".to_string()))
+        return Err((StatusCode::CONFLICT, Json("This email or username is already in use".to_string())))
     }
 
     let query: String = sql::Insert::new()
         .insert_into("users (name, email, password)")
         .values("(:username, :email, :password)")
         .to_string();
-
-
+    
     let stmt= conn.prepare(&*query);
 
     let _ = stmt
@@ -170,18 +167,18 @@ pub async fn store(body: String) -> Result<Json<String>, Json<String>>
     Ok(Json(format!("Successfully created a new user: {}", request.username)))
 }
 
-pub async fn update(path: Path<i32>) -> Result<Json<String>, Json<String>>
+pub async fn update(path: Path<i32>) -> Result<Json<String>, (StatusCode, Json<String>)>
 {
     let requested_user_id: i32 = path.0;
-    
-    Ok(Json("Not implemented yet".to_string()))
+
+    Err((StatusCode::NOT_IMPLEMENTED, Json("Not implemented yet".to_string())))
 }
 
-pub async fn destroy(path: Path<i32>) -> Result<Json<String>, Json<String>>
+pub async fn destroy(path: Path<i32>) -> Result<Json<String>, (StatusCode, Json<String>)>
 {
     let requested_user_id: i32 = path.0;
 
-    Ok(Json("Not implemented yet".to_string()))
+    Err((StatusCode::NOT_IMPLEMENTED, Json("Not implemented yet".to_string())))
 }
 
 fn deserialize_request<T: DeserializeOwned>(body: &str) -> Result<T, String>
