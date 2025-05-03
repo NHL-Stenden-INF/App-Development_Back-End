@@ -1,5 +1,7 @@
 use crate::database::CONN;
+use crate::auth;
 
+use axum::http::HeaderMap;
 use axum::Json;
 use rusqlite::named_params;
 use serde::{Serialize, Deserialize};
@@ -16,12 +18,46 @@ pub struct User
     points: i32
 }
 
-pub async fn index(body: String) -> Result<Json<String>, Json<String>>
+impl User
 {
-    Ok(Json("Not implemented yet".to_string()))
+    pub fn new(
+        id: i32, 
+        username: String, 
+        email: String, 
+        password: String, 
+        points: i32
+    ) -> User
+    {
+        User
+        {
+            id,
+            username,
+            email,
+            password,
+            points
+        }
+    }
+    
+    pub fn verify(&self, password: &str) -> bool
+    {
+        match bcrypt::verify(password, &self.password, )
+        {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
 }
 
-pub async fn show(body: String)  -> Result<Json<Vec<User>>, Json<String>>
+pub async fn index(headers: HeaderMap) -> Result<Json<User>, Json<String>>
+{
+    match auth::get_user_from_header(headers)
+    {
+        Ok(user) => Ok(Json(user)),
+        Err(error) => Err(Json(error))
+    }
+}
+
+pub async fn show()  -> Result<Json<Vec<User>>, Json<String>>
 {
     let query: String = sql::Select::new()
         .select("*")
