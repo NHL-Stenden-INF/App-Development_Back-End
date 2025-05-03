@@ -1,7 +1,6 @@
+use axum::extract::Path;
 use crate::database::CONN;
-use crate::auth;
 
-use axum::http::HeaderMap;
 use axum::Json;
 use rusqlite::named_params;
 use serde::{Serialize, Deserialize};
@@ -48,19 +47,44 @@ impl User
     }
 }
 
-pub async fn index(headers: HeaderMap) -> Result<Json<User>, Json<String>>
+pub async fn index(path: Path<i32>) -> Result<Json<User>, Json<String>>
 {
-    match auth::get_user_from_header(headers)
-    {
-        Ok(user) => Ok(Json(user)),
-        Err(error) => Err(Json(error))
-    }
+    let requested_user_id: i32 = path.0;
+    let query: String = sql::Select::new()
+        .select("id, name, email, points")
+        .from("users")
+        .where_clause("id = :user_id")
+        .as_string();
+    
+    let conn = CONN.lock().unwrap();
+    let stmt = conn.prepare(&query);
+
+    let mut result = stmt.unwrap();
+
+    let user: User = result.query_row(named_params! {":user_id": requested_user_id}, |row| {
+        Ok(User {
+            id: row.get::<usize, i32>(0).unwrap(),
+            username: row.get::<usize, String>(1).unwrap(),
+            email: row.get::<usize, String>(2).unwrap(),
+            password: "".to_string(),
+            points: row.get::<usize, i32>(3).unwrap()
+        })
+    }).unwrap_or_else(|error| {
+        User::new(
+        0, 
+        format!("User not found: {}", error), 
+        "does@not.exist".to_string(), 
+        "".to_string(), 
+        0)
+    });
+    
+    Ok(Json(user))
 }
 
 pub async fn show()  -> Result<Json<Vec<User>>, Json<String>>
 {
     let query: String = sql::Select::new()
-        .select("*")
+        .select("id, name, email, points")
         .from("users")
         .as_string();
 
@@ -74,7 +98,7 @@ pub async fn show()  -> Result<Json<Vec<User>>, Json<String>>
             id: row.get::<usize, i32>(0).unwrap(),
             username: row.get::<usize, String>(1).unwrap(),
             email: row.get::<usize, String>(2).unwrap(),
-            password: row.get::<usize, String>(3).unwrap(),
+            password: "".to_string(),
             points: row.get::<usize, i32>(4).unwrap()
         })
     }).unwrap();
@@ -146,13 +170,17 @@ pub async fn store(body: String) -> Result<Json<String>, Json<String>>
     Ok(Json(format!("Successfully created a new user: {}", request.username)))
 }
 
-pub async fn update() -> Result<Json<String>, Json<String>>
+pub async fn update(path: Path<i32>) -> Result<Json<String>, Json<String>>
 {
+    let requested_user_id: i32 = path.0;
+    
     Ok(Json("Not implemented yet".to_string()))
 }
 
-pub async fn destroy() -> Result<Json<String>, Json<String>>
+pub async fn destroy(path: Path<i32>) -> Result<Json<String>, Json<String>>
 {
+    let requested_user_id: i32 = path.0;
+
     Ok(Json("Not implemented yet".to_string()))
 }
 
