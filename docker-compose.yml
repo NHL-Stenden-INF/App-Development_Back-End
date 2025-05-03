@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    volumes:
+      - ./:/usr/src/app:z
     expose:
       - "${SERVER_PORT}"
     ports:
