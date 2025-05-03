@@ -100,6 +100,7 @@ pub async fn show() -> Result<Json<Vec<User>>, (StatusCode, Json<String>)>
             points: row.get::<usize, i32>(4).unwrap()
         })
     }).unwrap();
+    // TODO: Fix this unwrap
 
     let mut user_vector: Vec<User> = Vec::new();
 
@@ -160,11 +161,13 @@ pub async fn store(body: String) -> Result<Json<String>, (StatusCode, Json<Strin
     
     let stmt= conn.prepare(&*query);
 
-    let _ = stmt
+    match stmt
         .unwrap()
-        .execute(named_params! {":username": request.username, ":email": request.email, ":password": encrypted_password});
-
-    Ok(Json(format!("Successfully created a new user: {}", request.username)))
+        .execute(named_params! {":username": request.username, ":email": request.email, ":password": encrypted_password})
+    {
+        Ok(_) => Ok(Json(format!("Successfully created a new user: {}", request.username))),
+        Err(error) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Unable to create a new user: {}", error))))
+    }
 }
 
 pub async fn update(path: Path<i32>) -> Result<Json<String>, (StatusCode, Json<String>)>
