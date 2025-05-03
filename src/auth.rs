@@ -1,11 +1,11 @@
-use crate::database;
-
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::middleware::Next;
 use axum::response::Response;
 use regex::Regex;
 use lazy_static;
+use rusqlite::named_params;
+use sql_query_builder as sql;
 
 lazy_static::lazy_static!
 {
@@ -37,10 +37,31 @@ fn verify_credentials(authorization_header: &HeaderValue) -> bool
     let email: &str = parameters.get(1).map_or("", |m| m.as_str());
     let password: &str = parameters.get(2).map_or("", |m| m.as_str());
 
-    verify_credentials_by_string(email, password)
+    validate_user(email, password)
 }
 
-fn verify_credentials_by_string(email: &str, password: &str) -> bool
+pub fn validate_user(email: &str, password: &str) -> bool
 {
-    database::validate_user(email, password)
+    let conn = crate::database::CONN.lock().unwrap();
+
+    let query: String = sql::Select::new()
+        .select("*")
+        .from("users")
+        .where_clause("email = :email")
+        .as_string();
+
+    let stmt = conn.prepare(&*query);
+    let encrypted_password: String = stmt
+        .unwrap()
+        .query_row(named_params! {":email": email}, |row|
+            {
+                row.get::<usize, String> (3)
+            })
+        .unwrap_or_else(|error| {error.to_string()});
+    
+    match bcrypt::verify(password, &*encrypted_password)
+    {
+        Ok(_) => true,
+        Err(_) => false
+    }
 }
