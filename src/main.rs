@@ -15,12 +15,10 @@ const HOST: &str = "0.0.0.0:3000";
 async fn main()
 {
     println!("Started server on: {}", HOST);
-    let app = Router::new()
-        // Root route (unused)
-        .route("/", any(root))
+    // Routes here will be protected by the middleware
+    let protected_routes = Router::new()
         // User routes
-        .route("/user", get(user::show))
-        .route("/user", post(user::store))
+        .route("/user/", get(user::show))
         .route("/user/{user-id}", get(user::index))
         .route("/user/{user-id}", patch(user::update))
         .route("/user/{user-id}", delete(user::destroy))
@@ -36,6 +34,18 @@ async fn main()
         .route("/friend/{user-id}/add/{friend-id}", post(friends::store))
         .route("/friend/{user-id}/remove/{friend-id}", post(friends::destroy))
         .layer(middleware::from_fn(auth::authenticate));
+    
+    // Routes here will not
+    let unprotected_routes = Router::new()
+        // Root route (unused)
+        .route("/", any(root))
+        // User routes
+        .route("/user/", post(user::store));
+    
+    let app = Router::new()
+        .merge(protected_routes)
+        .merge(unprotected_routes);
+    
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(HOST)
