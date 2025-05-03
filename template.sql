@@ -5,7 +5,7 @@ CREATE TABLE users
     name     TEXT,
     email    TEXT,
     password TEXT,
-    points   INTEGER
+    points   INTEGER DEFAULT 0
 );
 
 DROP TABLE IF EXISTS games;

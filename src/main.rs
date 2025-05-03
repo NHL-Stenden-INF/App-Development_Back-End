@@ -3,7 +3,6 @@ mod database;
 mod auth;
 mod game;
 mod friends;
-mod response;
 
 use axum;
 use axum::response::Html;
@@ -19,7 +18,7 @@ async fn main()
     // Routes here will be protected by the middleware
     let protected_routes = Router::new()
         // User routes
-        .route("/user", get(user::show))
+        .route("/user/", get(user::show))
         .route("/user/{user-id}", get(user::index))
         .route("/user/{user-id}", patch(user::update))
         .route("/user/{user-id}", delete(user::destroy))
@@ -41,7 +40,7 @@ async fn main()
         // Root route (unused)
         .route("/", any(root))
         // User routes
-        .route("/user", post(user::store));
+        .route("/user/", post(user::store));
     
     let app = Router::new()
         .merge(protected_routes)
