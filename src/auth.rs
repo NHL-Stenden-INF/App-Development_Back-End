@@ -1,17 +1,12 @@
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::http::header::ToStrError;
 use axum::middleware::Next;
 use axum::response::Response;
-use regex::Regex;
-use lazy_static;
 use rusqlite::named_params;
 use sql_query_builder as sql;
 use crate::user::User;
-
-lazy_static::lazy_static!
-{
-    static ref AUTH_PATTERN: Regex = Regex::new(r"Basic (.*):(.*)").unwrap();
-}
+use base64::{Engine as _, alphabet, engine::{self, general_purpose}, DecodeError};
 
 pub struct Credentials
 {
@@ -29,7 +24,11 @@ pub async fn authenticate(
     {
         Some(header) =>
             {
-                let credentials: Credentials = get_credentials(header);
+                let credentials: Credentials = match get_credentials(header)
+                {
+                    Some(credentials) => credentials, 
+                    None => {return Err(StatusCode::BAD_REQUEST)}
+                };
                 match validate_user(&credentials.email, &credentials.password)
                 {
                     true => Ok(next.run(request).await),
@@ -41,23 +40,32 @@ pub async fn authenticate(
     }
 }
 
-pub fn get_credentials(authorization_header: &HeaderValue) -> Credentials
+pub fn get_credentials(authorization_header: &HeaderValue) -> Option<Credentials>
 {
-    let parameters = AUTH_PATTERN.captures(
-        authorization_header
-            .to_str()
-            .unwrap_or_else(|_| { "Basic invalid:user" }))
-        .unwrap();
-
-    Credentials
+    let auth_header_string: String = match authorization_header.to_str()
     {
-        email: parameters
-            .get(1)
-            .map_or("".to_string(), |m| m.as_str().to_string()),
-        password: parameters
-            .get(2)
-            .map_or("".to_string(), |m| m.as_str().to_string())
+        Ok(string_reference) => string_reference.to_string(),
+        Err(_) => "Basic invalid:user".to_string()
+    };
+
+    if !auth_header_string.starts_with("Basic ")
+    {
+        return None;
     }
+
+    let auth_string: String = match general_purpose::STANDARD.decode(&auth_header_string[6..])
+    {
+        Ok(vector_string) => String::from_utf8(vector_string).unwrap_or_else(|_| "invalid:user".to_string()),
+        Err(_) => "invalid:user".to_string()
+    };
+    
+    let mut credential = auth_string.split(":");
+
+    Some(Credentials
+    {
+        email: credential.next().unwrap().to_string(),
+        password: credential.next().unwrap().to_string(),
+    })
 }
 
 pub fn validate_user(email: &str, password: &str) -> bool
@@ -94,7 +102,11 @@ pub fn get_user_from_header(header_map: HeaderMap) -> Result<User, String>
         None => {return Err("Unable to find user with these credentials".to_string())},
     };
 
-    let credentials: Credentials = get_credentials(authorization_header);
+    let credentials: Credentials = match get_credentials(authorization_header)
+    {
+        Some(credentials) => credentials,
+        None => {return Err("Unable to decode header information".to_string())}
+    };
 
     let query: String = sql::Select::new()
         .select("*")

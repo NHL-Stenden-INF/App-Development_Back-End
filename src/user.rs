@@ -97,7 +97,7 @@ pub async fn show() -> Result<Json<Vec<User>>, (StatusCode, Json<String>)>
             username: row.get::<usize, String>(1).unwrap(),
             email: row.get::<usize, String>(2).unwrap(),
             password: "".to_string(),
-            points: row.get::<usize, i32>(4).unwrap()
+            points: row.get::<usize, i32>(3).unwrap()
         })
     }).unwrap();
     // TODO: Fix this unwrap
