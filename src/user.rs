@@ -14,7 +14,6 @@ pub struct User
     id: i32,
     username: String,
     email: String,
-    password: String,
     points: i32
 }
 
@@ -24,7 +23,6 @@ impl User
         id: i32,
         username: String,
         email: String,
-        password: String,
         points: i32
     ) -> User
     {
@@ -33,17 +31,7 @@ impl User
             id,
             username,
             email,
-            password,
             points
-        }
-    }
-
-    pub fn verify(&self, password: &str) -> bool
-    {
-        match bcrypt::verify(password, &self.password, )
-        {
-            Ok(_) => true,
-            Err(_) => false,
         }
     }
 }
@@ -63,13 +51,12 @@ pub async fn index(path: Path<i32>) -> Result<Json<User>, (StatusCode, Json<Stri
     let mut result = stmt.unwrap();
 
     let user = result.query_row(named_params! {":user_id": requested_user_id}, |row| {
-        Ok(User {
-            id: row.get::<usize, i32>(0).unwrap(),
-            username: row.get::<usize, String>(1).unwrap(),
-            email: row.get::<usize, String>(2).unwrap(),
-            password: "".to_string(),
-            points: row.get::<usize, i32>(3).unwrap()
-        })
+        Ok(User::new(
+            row.get::<usize, i32>(0).unwrap(),
+            row.get::<usize, String>(1).unwrap(),
+            row.get::<usize, String>(2).unwrap(),
+            row.get::<usize, i32>(3).unwrap()
+        ))
     });
         
     match user 
@@ -92,13 +79,12 @@ pub async fn show() -> Result<Json<Vec<User>>, (StatusCode, Json<String>)>
     let mut result = stmt.unwrap();
 
     let users = result.query_map([], |row| {
-        Ok(User {
-            id: row.get::<usize, i32>(0).unwrap(),
-            username: row.get::<usize, String>(1).unwrap(),
-            email: row.get::<usize, String>(2).unwrap(),
-            password: "".to_string(),
-            points: row.get::<usize, i32>(3).unwrap()
-        })
+        Ok(User::new(
+            row.get::<usize, i32>(0).unwrap(),
+            row.get::<usize, String>(1).unwrap(),
+            row.get::<usize, String>(2).unwrap(),
+            row.get::<usize, i32>(3).unwrap()
+        ))
     }).unwrap();
     // TODO: Fix this unwrap
 
