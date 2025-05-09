@@ -1,6 +1,7 @@
 use axum::extract::Path;
-use axum::http::StatusCode;
+use axum::http::{StatusCode, HeaderMap};
 use crate::database::CONN;
+use crate::auth;
 
 use axum::Json;
 use rusqlite::named_params;

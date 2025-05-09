@@ -10,8 +10,8 @@ use base64::{Engine as _, alphabet, engine::{self, general_purpose}, DecodeError
 
 pub struct Credentials
 {
-    email: String,
-    password: String
+    pub email: String,
+    pub password: String
 }
 
 pub async fn authenticate(
