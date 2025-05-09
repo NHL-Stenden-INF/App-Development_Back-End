@@ -2,21 +2,15 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::middleware::Next;
 use axum::response::Response;
-use regex::Regex;
-use lazy_static;
 use rusqlite::named_params;
 use sql_query_builder as sql;
 use crate::user::User;
-
-lazy_static::lazy_static!
-{
-    static ref AUTH_PATTERN: Regex = Regex::new(r"Basic (.*):(.*)").unwrap();
-}
+use base64::{Engine as _, engine::general_purpose};
 
 pub struct Credentials
 {
-    email: String,
-    password: String
+    pub email: String,
+    pub password: String
 }
 
 pub async fn authenticate(
@@ -37,26 +31,40 @@ pub async fn authenticate(
                 }
             },
         None => Err(StatusCode::UNAUTHORIZED),
-        _ => Err(StatusCode::UNAUTHORIZED),
     }
 }
 
 pub fn get_credentials(authorization_header: &HeaderValue) -> Credentials
 {
-    let parameters = AUTH_PATTERN.captures(
-        authorization_header
-            .to_str()
-            .unwrap_or_else(|_| { "Basic invalid:user" }))
-        .unwrap();
+    let header_str = match authorization_header.to_str() {
+        Ok(s) => s,
+        Err(_) => return Credentials { email: "".to_string(), password: "".to_string() },
+    };
 
-    Credentials
-    {
-        email: parameters
-            .get(1)
-            .map_or("".to_string(), |m| m.as_str().to_string()),
-        password: parameters
-            .get(2)
-            .map_or("".to_string(), |m| m.as_str().to_string())
+    if !header_str.starts_with("Basic ") {
+        return Credentials { email: "".to_string(), password: "".to_string() };
+    }
+
+    let b64_credentials = &header_str[6..];
+
+    let decoded_bytes = match general_purpose::STANDARD.decode(b64_credentials) {
+        Ok(bytes) => bytes,
+        Err(_) => return Credentials { email: "".to_string(), password: "".to_string() },
+    };
+
+    let decoded_str = match String::from_utf8(decoded_bytes) {
+        Ok(s) => s,
+        Err(_) => return Credentials { email: "".to_string(), password: "".to_string() },
+    };
+
+    let parts: Vec<&str> = decoded_str.splitn(2, ':').collect();
+    if parts.len() == 2 {
+        Credentials {
+            email: parts[0].to_string(),
+            password: parts[1].to_string(),
+        }
+    } else {
+        Credentials { email: "".to_string(), password: "".to_string() }
     }
 }
 

@@ -1,6 +1,7 @@
 use axum::extract::Path;
-use axum::http::StatusCode;
+use axum::http::{StatusCode, HeaderMap};
 use crate::database::CONN;
+use crate::auth;
 
 use axum::Json;
 use rusqlite::named_params;
@@ -79,37 +80,46 @@ pub async fn index(path: Path<i32>) -> Result<Json<User>, (StatusCode, Json<Stri
     }
 }
 
-pub async fn show() -> Result<Json<Vec<User>>, (StatusCode, Json<String>)>
+pub async fn show(headers: HeaderMap) -> Result<Json<User>, (StatusCode, Json<String>)>
 {
+    let authorization_header = match headers.get("Authorization") {
+        Some(header) => header,
+        None => return Err((StatusCode::UNAUTHORIZED, Json("Authorization header missing".to_string()))),
+    };
+
+    let credentials = auth::get_credentials(authorization_header);
+    if credentials.email.is_empty() {
+        return Err((StatusCode::UNAUTHORIZED, Json("Invalid credentials".to_string())));
+    }
+
     let query: String = sql::Select::new()
-        .select("id, name, email, points")
+        .select("id, name, email, password, points")
         .from("users")
+        .where_clause("email = :email")
         .as_string();
 
     let conn = CONN.lock().unwrap();
     let stmt = conn.prepare(&query);
 
-    let mut result = stmt.unwrap();
+    match stmt {
+        Ok(mut statement) => {
+            let user_result = statement.query_row(named_params! {":email": credentials.email}, |row| {
+                Ok(User {
+                    id: row.get::<usize, i32>(0).unwrap(),
+                    username: row.get::<usize, String>(1).unwrap(),
+                    email: row.get::<usize, String>(2).unwrap(),
+                    password: row.get::<usize, String>(3).unwrap(),
+                    points: row.get::<usize, i32>(4).unwrap(),
+                })
+            });
 
-    let users = result.query_map([], |row| {
-        Ok(User {
-            id: row.get::<usize, i32>(0).unwrap(),
-            username: row.get::<usize, String>(1).unwrap(),
-            email: row.get::<usize, String>(2).unwrap(),
-            password: "".to_string(),
-            points: row.get::<usize, i32>(4).unwrap()
-        })
-    }).unwrap();
-    // TODO: Fix this unwrap
-
-    let mut user_vector: Vec<User> = Vec::new();
-
-    for user in users
-    {
-        user_vector.push(user.unwrap());
-    };
-    
-    Ok(Json(user_vector))
+            match user_result {
+                Ok(user) => Ok(Json(user)),
+                Err(e) => Err((StatusCode::NOT_FOUND, Json(format!("User not found or DB error: {}", e.to_string())))),
+            }
+        }
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(format!("Failed to prepare statement: {}", e.to_string())))),
+    }
 }
 
 pub async fn store(body: String) -> Result<Json<String>, (StatusCode, Json<String>)>
