@@ -40,7 +40,8 @@ async fn main()
         // Root route (unused)
         .route("/", any(root))
         // User routes
-        .route("/user/", post(user::store));
+        .route("/user/", post(user::store))
+        .route("/auth/", get(auth::get_user_from_header_json));
     
     let app = Router::new()
         .merge(protected_routes)
